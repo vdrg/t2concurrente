@@ -25,7 +25,7 @@ def main(argv = None):
 
     # Number of bins
     BINS = 1024
-    edited = clip.fl_image( equalizer.process(BINS) )
+    edited = clip.fl_image( serial_equalizer.process(BINS) )
 
     # Write the result to a file
     edited.write_videofile(argv[2])
