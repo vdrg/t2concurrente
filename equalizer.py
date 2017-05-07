@@ -1,10 +1,12 @@
-from skimage.color import rgb2hsv, hsv2rgb
+#from skimage.color import rgb2hsv, hsv2rgb
+#from skimage.color import hsv2rgb
 import numpy as np
 import pycuda.driver as cuda
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
+from math import ceil
 
-from .kernels.loader import load_kernels
+from kernels.loader import load_kernels
 
 mod = SourceModule(load_kernels())
    
@@ -23,7 +25,7 @@ def compute_cdf(hist):
     cdf = np.empty_like(hist)
     cdf[0] = hist[0]
     for i in range(1, len(hist)):
-        cdf[i] = cdf[i - 1] + hist[i]
+       cdf[i] = cdf[i - 1] + hist[i]
     return cdf
  
 def compute_transform(cdf, size):
@@ -37,22 +39,43 @@ def compute_transform(cdf, size):
     transform_func(cuda.InOut(transform), np.int32(len(transform)), cuda.In(cdf), np.int32(cdf_min), np.int32(size), grid=grid, block=block)
     return transform
 
-def transform_values(img, values, transform, width, height):
-    result = np.empty_like(values).astype(np.float32)
+def transform_values(img, values, transform):
 
-    # Yblocks = width / 16
-    # if(width % 16 > 0) Yblocks++
-    # Xblocks = height / 16;
-    # if(height % 16) Xblocks++;
-    # block = (16, 16, 1)
-    # grid = (Yblocks, Xblocks, 1)
-    block = (128, 1, 1)
-    grid = (int((len(values) + block[0] - 1)/block[0]), 1, 1)
+    width = img.shape[1]
+    height = img.shape[0]
+    block = (16, 16, 1)
+    grid = (ceil(width / 16), ceil(height / 16), 1)
 
-    # func = mod.get_function("transform_values")
-    # func(cuda.In(values), cuda.InOut(result), cuda.In(transform), np.int32(width), np.int32(height), grid=grid, block=block)
+    func = mod.get_function("transform_values")
+    func(cuda.InOut(img), cuda.In(values), cuda.In(transform), np.int32(width), np.int32(height), grid=grid, block=block)
 
-    return transform[values].reshape(img[:,:,2].shape)
+    #return transform[values].reshape(img[:,:,2].shape)
+    #return img
+
+def rgb2hsv(img):
+    rgb2hsv_func = mod.get_function("rgb_hsv")
+    width = img.shape[1]
+    height = img.shape[0]
+    block = (16, 16, 1)
+    grid = (ceil(width / 16), ceil(height / 16), 1)
+
+    result = np.empty_like(img).astype(np.float32)
+    rgb2hsv_func(cuda.In(img.astype(np.uint8)), cuda.Out(result), np.int32(width), np.int32(height), grid=grid, block=block)
+
+    return result
+
+def hsv2rgb(img):
+    hsv2rgb_func = mod.get_function("hsv_rgb")
+    width = img.shape[1]
+    height = img.shape[0]
+    block = (16, 16, 1)
+    grid = (ceil(width / 16), ceil(height / 16), 1)
+
+    result = np.empty_like(img).astype(np.uint8)
+    hsv2rgb_func(cuda.In(img.astype(np.float32)), cuda.Out(result), np.int32(width), np.int32(height), grid=grid, block=block)
+
+    return result
+
 
 def process(bins, verbose=False):
     verboseprint = print if verbose else lambda *a, **k: None
@@ -61,6 +84,10 @@ def process(bins, verbose=False):
     def compute(image):
         verboseprint("Moving image to HSV color space.")
         edited = rgb2hsv(image)
+        # print(edited)
+        # print(np.amax(edited[:,:,0]))
+        # print(np.amax(edited[:,:,1]))
+        # print(np.amax(edited[:,:,2]))
         values = edited[:,:,2].flatten() * (bins - 1)
         values = values.round().astype(np.int32)
 
@@ -74,11 +101,18 @@ def process(bins, verbose=False):
         transform = compute_transform(cdf, len(values))
 
         verboseprint("Setting transformed values to the image.")
-        edited[:,:,2] = transform_values(edited, values, transform, edited.shape[1], edited.shape[0])
+        
+        #edited[:,:,2] = transform_values(edited, values, transform)
+        transform_values(edited, values, transform)
+
 
         verboseprint("Moving image back to RGB.")
 
-        return hsv2rgb(edited) * 255
+        #print(np.unique(edited[:,:,2]))
+        # print(np.amax(hsv2rgb(edited)))
+        # print(np.amin(hsv2rgb(edited)))
+        #print(hsv2rgb(edited))
+        return hsv2rgb(edited)
     return compute
 
     
