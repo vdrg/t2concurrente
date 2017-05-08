@@ -1,7 +1,6 @@
 from skimage.color import rgb2hsv, hsv2rgb
 import numpy as np
 
-
 def compute_cdf(hist):
     cdf = hist.cumsum()
     return cdf / cdf[-1]

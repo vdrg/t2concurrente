@@ -1,10 +1,11 @@
-// Adapted from https://github.com/jakebesworth/Simple-Color-Conversions
 
 __device__ void rgb_hsv_single(unsigned char rc, unsigned char gc, unsigned char bc, float *h, float *s, float *v)
 {
+
+  // Adapted and simplified from https://github.com/jakebesworth/Simple-Color-Conversions
+
   float min, max, delta;
   float r, g, b;
-
 
   r = (float) rc / 255.0;
   g = (float) gc / 255.0;

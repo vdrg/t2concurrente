@@ -1,7 +1,9 @@
-// Adapted from https://github.com/jakebesworth/Simple-Color-Conversions
 
 __device__ void hsv_rgb_single(float h, float s, float v, unsigned char *r, unsigned char *g, unsigned char *b)
 {
+
+  // Adapted and simplified from https://github.com/jakebesworth/Simple-Color-Conversions
+
   /* Convert hue back to 0-6 space, floor */
   const float hex = h * 6;
   const unsigned char primary = (int) hex;

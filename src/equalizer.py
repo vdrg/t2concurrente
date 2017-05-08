@@ -1,5 +1,3 @@
-#from skimage.color import rgb2hsv, hsv2rgb
-#from skimage.color import hsv2rgb
 import numpy as np
 import pycuda.driver as cuda
 import pycuda.autoinit
@@ -7,9 +5,9 @@ from pycuda.compiler import SourceModule
 from math import ceil
 
 from kernels.loader import load_kernels
-
-mod = SourceModule(load_kernels())
    
+mod = None
+
 def compute_hist(values, bins):
     hist = np.zeros(bins).astype(np.int32)
 
@@ -41,16 +39,16 @@ def compute_transform(cdf, size):
 
 def transform_values(img, values, transform):
 
-    width = img.shape[1]
-    height = img.shape[0]
-    block = (16, 16, 1)
-    grid = (ceil(width / 16), ceil(height / 16), 1)
+    #  width = img.shape[1]
+    #  height = img.shape[0]
+    #  block = (16, 16, 1)
+    #  grid = (ceil(width / 16), ceil(height / 16), 1)
 
-    func = mod.get_function("transform_values")
-    func(cuda.InOut(img), cuda.In(values), cuda.In(transform), np.int32(width), np.int32(height), grid=grid, block=block)
+    #  func = mod.get_function("transform_values")
+    #  func(cuda.InOut(img), cuda.In(values), cuda.In(transform), np.int32(width), np.int32(height), grid=grid, block=block)
 
-    #return transform[values].reshape(img[:,:,2].shape)
-    #return img
+    return transform[values].reshape(img[:,:,2].shape)
+    return img
 
 def rgb2hsv(img):
     rgb2hsv_func = mod.get_function("rgb_hsv")
@@ -78,16 +76,15 @@ def hsv2rgb(img):
 
 
 def process(bins, verbose=False):
+    global mod
+    mod = SourceModule(load_kernels())
+
     verboseprint = print if verbose else lambda *a, **k: None
 
     # Currying
     def compute(image):
         verboseprint("Moving image to HSV color space.")
         edited = rgb2hsv(image)
-        # print(edited)
-        # print(np.amax(edited[:,:,0]))
-        # print(np.amax(edited[:,:,1]))
-        # print(np.amax(edited[:,:,2]))
         values = edited[:,:,2].flatten() * (bins - 1)
         values = values.round().astype(np.int32)
 
@@ -102,16 +99,12 @@ def process(bins, verbose=False):
 
         verboseprint("Setting transformed values to the image.")
         
-        #edited[:,:,2] = transform_values(edited, values, transform)
-        transform_values(edited, values, transform)
+        edited[:,:,2] = transform_values(edited, values, transform)
+        #  transform_values(edited, values, transform)
 
 
         verboseprint("Moving image back to RGB.")
 
-        #print(np.unique(edited[:,:,2]))
-        # print(np.amax(hsv2rgb(edited)))
-        # print(np.amin(hsv2rgb(edited)))
-        #print(hsv2rgb(edited))
         return hsv2rgb(edited)
     return compute
 

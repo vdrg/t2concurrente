@@ -13,11 +13,11 @@ except ImportError:
 
 
 def usage():
-    print("Usage: python main.py source destination")
+    print("Usage: python main.py [options] source destination")
     print("Options:")
     print("  -h, --help       Display this message.")
     print("  -s, --serial     Force serial equalization.")
-    print("    , --subclip    Equalize from the beginning of the video until this second. Example: --subclip 10")
+    print("    , --subclip    Equalize from the beginning of the video until this second. Default: 30. Example: --subclip 10")
     print("    , --verbose    Show aditional information.")
 
 def main(argv = None):
@@ -62,10 +62,9 @@ def main(argv = None):
         if (clip.fps > 25):
             clip.set_fps(25)
 
-
         # Number of bins
         BINS = 256
-        edited = clip.fl_image( equalize(BINS, verbose) )
+        edited = clip.fl_image(equalize(BINS, verbose))
 
         # Write the result to a file
         edited.write_videofile(args[1])
